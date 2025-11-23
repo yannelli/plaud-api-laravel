@@ -2,11 +2,11 @@
 
 All notable changes to `laravel-plaud` will be documented in this file.
 
-## v1.0.0 - 2024-11-22
+## v0.1.0 - 2024-11-22
 
 ### Added
 - Initial release
-- Full Plaud API support for Laravel 11 and 12
+- Full Plaud API support for Laravel 12
 - Authentication with username/password
 - Retrieve and filter recordings
 - Download audio files, transcripts, and summaries
