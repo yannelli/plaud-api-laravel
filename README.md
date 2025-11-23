@@ -11,7 +11,7 @@ An **unofficial** Laravel package for the Plaud API. This package provides a cle
 - ✅ Trash, restore, and permanently delete recordings
 - ✅ Laravel HTTP client integration
 - ✅ Facade support for easy access
-- ✅ Type-safe models with PHP 8.2+ typed properties
+- ✅ Type-safe models with PHP 8.3+ typed properties
 - ✅ Comprehensive error handling
 
 ## Requirements
