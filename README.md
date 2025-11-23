@@ -345,7 +345,7 @@ If you discover any security-related issues, please email the package maintainer
 
 ## Credits
 
-- Original .NET library: [Unofficial Plaud API .NET](https://github.com/yannelli/Unofficial_Plaud_API)
+- Original .NET library: [JamesStuder/Plaud_API](https://github.com/JamesStuder/Plaud_API)
 - Laravel package maintainer: [Ryan Yannelli](https://ryanyannelli.com)
 
 ## License
