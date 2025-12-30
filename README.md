@@ -1,3 +1,5 @@
+[![Tests](https://github.com/yannelli/plaud-api-laravel/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/yannelli/plaud-api-laravel/actions/workflows/tests.yml)
+
 # Laravel Plaud API Package
 
 An **unofficial** Laravel package for the Plaud API. This package provides a clean, Laravel-idiomatic interface for managing recordings, transcriptions, and summaries from the Plaud platform.
