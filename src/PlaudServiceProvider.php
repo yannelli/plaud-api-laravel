@@ -2,9 +2,10 @@
 
 namespace Yannelli\LaravelPlaud;
 
+use Illuminate\Contracts\Support\DeferrableProvider;
 use Illuminate\Support\ServiceProvider;
 
-class PlaudServiceProvider extends ServiceProvider
+class PlaudServiceProvider extends ServiceProvider implements DeferrableProvider
 {
     /**
      * Register any application services.
