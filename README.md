@@ -19,7 +19,7 @@ An **unofficial** Laravel package for the Plaud API. This package provides a cle
 ## Requirements
 
 - PHP 8.3 or higher
-- Laravel 12.x
+- Laravel 12.x or 13.x
 - Guzzle HTTP client 7.x
 
 ## Installation
