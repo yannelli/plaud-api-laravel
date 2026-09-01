@@ -6,10 +6,12 @@ This file contains practical examples of using the Laravel Plaud package.
 
 1. [Basic Setup](#basic-setup)
 2. [Authentication](#authentication)
-3. [Managing Recordings](#managing-recordings)
-4. [Downloading Files](#downloading-files)
-5. [Sharing Recordings](#sharing-recordings)
-6. [Advanced Examples](#advanced-examples)
+3. [Regional hosts](#regional-hosts)
+4. [Managing Recordings](#managing-recordings)
+5. [Downloading Files](#downloading-files)
+6. [Sharing Recordings](#sharing-recordings)
+7. [Transcription and speakers](#transcription-and-speakers)
+8. [Advanced Examples](#advanced-examples)
 
 ## Basic Setup
 
@@ -82,6 +84,40 @@ public function getService()
     return $service;
 }
 ```
+
+### Email OTP
+
+```php
+use Yannelli\LaravelPlaud\Facades\Plaud;
+
+$otp = Plaud::sendOtpCode($request->input('email'));
+session(['plaud_otp_token' => $otp->token]);
+
+// later, after the user submits the emailed code:
+$auth = Plaud::otpLogin($request->input('code'), session('plaud_otp_token'));
+Cache::put('plaud_token', $auth->accessToken, now()->addDays(30));
+```
+
+### Workspace token (UT → WT)
+
+```php
+use Yannelli\LaravelPlaud\Facades\Plaud;
+
+Plaud::setAccessToken(config('plaud.user_token'));
+$workspaces = Plaud::getWorkspaces();
+Plaud::useWorkspace($workspaces->workspaces[0]->id);
+```
+
+## Regional hosts
+
+```php
+use Yannelli\LaravelPlaud\Facades\Plaud;
+
+Plaud::setRegion('eu');
+$user = Plaud::getMyUser();
+```
+
+The client also follows `status: -302` bodies (`data.domains.api`) and JWT `region` claims, so a global `api.plaud.ai` token for an EU account is retried on `api-euc1.plaud.ai`.
 
 ## Managing Recordings
 
@@ -290,6 +326,27 @@ public function shareAudioOnly(string $recordingId)
 
     return Plaud::createShareableLink($recordingId, $permissions);
 }
+```
+
+## Transcription and speakers
+
+```php
+use Yannelli\LaravelPlaud\Facades\Plaud;
+
+Plaud::startAnalysis($recordingId, language: 'en');
+
+$status = Plaud::getTranssumm($recordingId, language: 'en');
+$notes = Plaud::getAiNotes($recordingId);
+
+$speakers = Plaud::getSpeakersForRecording($recordingId);
+Plaud::renameSpeaker($recordingId, 'Speaker 1', 'Alice');
+
+$uploaded = Plaud::uploadRecording(storage_path('app/meeting.mp3'), 'Weekly standup');
+Plaud::renameRecording($uploaded->id, 'Weekly standup (final)');
+
+$folder = Plaud::createFileTag('Standups');
+Plaud::setRecordingTags($uploaded->id, [$folder->id]);
+$inFolder = Plaud::getRecordingsByTag($folder->id);
 ```
 
 ## Advanced Examples
