@@ -1,0 +1,8 @@
+{
+  "name": "laravel-plaud",
+  "user": "ubuntu",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "install": "composer update --prefer-dist --no-interaction --no-progress"
+}
