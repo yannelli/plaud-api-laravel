@@ -11,7 +11,8 @@ describe('ExtraData', function () {
 
         expect($extra->tranConfig)->toBeNull()
             ->and($extra->aiContentFrom)->toBeNull()
-            ->and($extra->aiContentHeader)->toBeNull();
+            ->and($extra->aiContentHeader)->toBeNull()
+            ->and($extra->taskIdInfo)->toBeNull();
     });
 
     it('can be instantiated with all properties', function () {
@@ -83,7 +84,8 @@ describe('ExtraData', function () {
 
         expect($extra->tranConfig)->toBeNull()
             ->and($extra->aiContentFrom)->toBeNull()
-            ->and($extra->aiContentHeader)->toBeNull();
+            ->and($extra->aiContentHeader)->toBeNull()
+            ->and($extra->taskIdInfo)->toBeNull();
     });
 
     it('converts to array correctly with all data', function () {
@@ -115,6 +117,7 @@ describe('ExtraData', function () {
             'tranConfig' => null,
             'aiContentFrom' => null,
             'aiContentHeader' => null,
+            'task_id_info' => null,
         ]);
     });
 });

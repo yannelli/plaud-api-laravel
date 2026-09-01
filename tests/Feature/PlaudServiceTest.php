@@ -12,6 +12,7 @@ use Yannelli\LaravelPlaud\Models\Responses\ResponseFileTags;
 use Yannelli\LaravelPlaud\Models\Responses\ResponseShareableLink;
 use Yannelli\LaravelPlaud\Models\Requests\RequestShareableLinkPermissions;
 use Yannelli\LaravelPlaud\Tests\TestCase;
+use Illuminate\Http\Client\Request;
 
 uses(TestCase::class);
 
@@ -424,6 +425,299 @@ describe('PlaudService', function () {
 
             expect(fn() => $service->permanentlyDeleteRecordings([]))
                 ->toThrow(PlaudException::class, 'Recording IDs cannot be empty.');
+        });
+    });
+
+    describe('newer unofficial endpoints', function () {
+        it('gets a recording by id from /file/detail', function () {
+            Http::fake([
+                'api.plaud.ai/file/detail/rec-9' => Http::response([
+                    'status' => 0,
+                    'data' => [
+                        'file_id' => 'rec-9',
+                        'file_name' => 'Standup',
+                    ],
+                ], 200),
+            ]);
+
+            $service = new PlaudService(new PlaudClient('token'));
+            $file = $service->getRecording('rec-9');
+
+            expect($file->id)->toBe('rec-9')
+                ->and($file->filename)->toBe('Standup');
+        });
+
+        it('lists speakers', function () {
+            Http::fake([
+                'api.plaud.ai/speaker/list' => Http::response([
+                    'status' => 0,
+                    'data_speaker_list' => [
+                        ['id' => 's1', 'name' => 'Alice'],
+                    ],
+                ], 200),
+            ]);
+
+            $service = new PlaudService(new PlaudClient('token'));
+            $response = $service->getSpeakers();
+
+            expect($response->speakers)->toHaveCount(1)
+                ->and($response->speakers[0]->name)->toBe('Alice');
+        });
+
+        it('posts transsumm analysis status', function () {
+            Http::fake([
+                'api.plaud.ai/ai/transsumm/rec-1' => Http::response([
+                    'status' => 0,
+                    'msg' => 'ok',
+                    'data' => ['complete' => true],
+                ], 200),
+            ]);
+
+            $service = new PlaudService(new PlaudClient('token'));
+            $response = $service->getTranssumm('rec-1');
+
+            expect($response->status)->toBe(0)
+                ->and($response->data['complete'])->toBeTrue();
+        });
+
+        it('gets AI notes and file task status', function () {
+            Http::fake([
+                'api.plaud.ai/ai/query_note*' => Http::response([
+                    'status' => 0,
+                    'data' => ['note' => 'hello'],
+                ], 200),
+                'api.plaud.ai/ai/file-task-status*' => Http::response([
+                    'status' => 0,
+                    'data' => ['state' => 'done'],
+                ], 200),
+            ]);
+
+            $service = new PlaudService(new PlaudClient('token'));
+
+            expect($service->getAiNotes('rec-1')->data['note'])->toBe('hello')
+                ->and($service->getFileTaskStatus('rec-1')->data['state'])->toBe('done');
+        });
+
+        it('lists devices and workspaces', function () {
+            Http::fake([
+                'api.plaud.ai/device/list' => Http::response([
+                    'status' => 0,
+                    'data_device_list' => [
+                        ['id' => 'd1', 'name' => 'NotePin', 'serial_number' => 'SN1'],
+                    ],
+                ], 200),
+                'api.plaud.ai/team-app/workspaces/list' => Http::response([
+                    'status' => 0,
+                    'data' => [
+                        'list' => [
+                            ['id' => 'ws-1', 'name' => 'Personal'],
+                        ],
+                    ],
+                ], 200),
+            ]);
+
+            $service = new PlaudService(new PlaudClient('token'));
+
+            expect($service->getDevices()->devices[0]->name)->toBe('NotePin')
+                ->and($service->getWorkspaces()->workspaces[0]->id)->toBe('ws-1');
+        });
+
+        it('filters recordings by filetag id', function () {
+            Http::fake([
+                'api.plaud.ai/file/simple/web*' => Http::response([
+                    'status' => 200,
+                    'msg' => 'success',
+                    'data_file_total' => 1,
+                    'data_file_list' => [
+                        ['id' => 'rec-tag', 'filename' => 'Tagged'],
+                    ],
+                ], 200),
+            ]);
+
+            $service = new PlaudService(new PlaudClient('token'));
+            $response = $service->getRecordingsWithFilter(filetagId: 'tag-9');
+
+            expect($response->dataFileList[0]->id)->toBe('rec-tag');
+
+            Http::assertSent(function (Request $request) {
+                return str_contains($request->url(), 'filetag_id=tag-9');
+            });
+        });
+
+        it('starts analysis with a PATCH to /file/{id}', function () {
+            Http::fake([
+                'api.plaud.ai/file/rec-1' => Http::response(['status' => 0, 'msg' => 'ok'], 200),
+            ]);
+
+            $service = new PlaudService(new PlaudClient('token'));
+            $response = $service->startAnalysis('rec-1', 'en');
+
+            expect($response->status)->toBe(0);
+        });
+
+        it('renames a speaker in a recording transcript', function () {
+            Http::fake([
+                'api.plaud.ai/file/list' => Http::response([
+                    'status' => 200,
+                    'msg' => 'success',
+                    'data_file_total' => 1,
+                    'data_file_list' => [
+                        [
+                            'id' => 'rec-1',
+                            'filename' => 'Call',
+                            'trans_result' => [
+                                ['content' => 'Hi', 'speaker' => 'Speaker 1', 'start_time' => 0, 'end_time' => 1],
+                            ],
+                        ],
+                    ],
+                ], 200),
+                'api.plaud.ai/file/rec-1' => Http::response(['status' => 0], 200),
+            ]);
+
+            $service = new PlaudService(new PlaudClient('token'));
+            $response = $service->renameSpeaker('rec-1', 'Speaker 1', 'Alice');
+
+            expect($response->status)->toBe(0);
+        });
+
+        it('sends an OTP code', function () {
+            Http::fake([
+                'api.plaud.ai/auth/otp-send-code' => Http::response([
+                    'status' => 0,
+                    'token' => 'otp-1',
+                ], 200),
+            ]);
+
+            $service = new PlaudService();
+            $otp = $service->sendOtpCode('user@example.com');
+
+            expect($otp->token)->toBe('otp-1');
+        });
+
+        it('uploads a local audio file through the presign flow', function () {
+            $path = tempnam(sys_get_temp_dir(), 'plaud');
+            file_put_contents($path, 'ID3fake-mp3');
+
+            Http::fake([
+                'api.plaud.ai/file/get_upload_presigned_url' => Http::response([
+                    'status' => 0,
+                    'data' => [
+                        'part_urls' => ['https://s3.example.com/upload'],
+                        'upload_id' => 'up-1',
+                        'object_name' => 'obj-1',
+                    ],
+                ], 200),
+                'https://s3.example.com/upload' => Http::response(null, 200, ['ETag' => '"etag-1"']),
+                'api.plaud.ai/file/merge_multipart' => Http::response(['status' => 0], 200),
+                'api.plaud.ai/file/confirm_upload' => Http::response([
+                    'status' => 0,
+                    'data' => ['id' => 'rec-up', 'filename' => 'Standup'],
+                ], 200),
+            ]);
+
+            $service = new PlaudService(new PlaudClient('token'));
+            $file = $service->uploadRecording($path, 'Standup');
+
+            expect($file->id)->toBe('rec-up')
+                ->and($file->filename)->toBe('Standup');
+
+            @unlink($path);
+        });
+
+        it('uploads every presigned part for a multipart file', function () {
+            $path = tempnam(sys_get_temp_dir(), 'plaud');
+            file_put_contents($path, str_repeat('A', 8));
+
+            Http::fake([
+                'api.plaud.ai/file/get_upload_presigned_url' => Http::response([
+                    'status' => 0,
+                    'data' => [
+                        'part_urls' => [
+                            'https://s3.example.com/part-1',
+                            'https://s3.example.com/part-2',
+                        ],
+                        'upload_id' => 'up-2',
+                        'object_name' => 'obj-2',
+                    ],
+                ], 200),
+                'https://s3.example.com/part-1' => Http::response(null, 200, ['ETag' => '"etag-a"']),
+                'https://s3.example.com/part-2' => Http::response(null, 200, ['ETag' => '"etag-b"']),
+                'api.plaud.ai/file/merge_multipart' => Http::response(['status' => 0], 200),
+                'api.plaud.ai/file/confirm_upload' => Http::response([
+                    'status' => 0,
+                    'data' => ['id' => 'rec-multi', 'filename' => 'Big'],
+                ], 200),
+            ]);
+
+            $service = new PlaudService(new PlaudClient('token'));
+            $file = $service->uploadRecording($path, 'Big');
+
+            expect($file->id)->toBe('rec-multi');
+
+            Http::assertSent(function (Request $request) {
+                return str_ends_with($request->url(), '/file/merge_multipart')
+                    && ($request['parts'][0]['PartNumber'] ?? null) === 1
+                    && ($request['parts'][1]['PartNumber'] ?? null) === 2
+                    && ($request['parts'][0]['Etag'] ?? null) === 'etag-a'
+                    && ($request['parts'][1]['Etag'] ?? null) === 'etag-b';
+            });
+
+            @unlink($path);
+        });
+
+        it('creates and deletes file tags', function () {
+            Http::fake([
+                'api.plaud.ai/filetag/' => Http::response([
+                    'status' => 0,
+                    'data' => ['id' => 'tag-1', 'name' => 'Meetings', 'color' => '#fff', 'icon' => 'folder'],
+                ], 200),
+                'api.plaud.ai/filetag/tag-1' => Http::response(['status' => 0], 200),
+            ]);
+
+            $service = new PlaudService(new PlaudClient('token'));
+            $tag = $service->createFileTag('Meetings', '#fff', 'folder');
+
+            expect($tag->id)->toBe('tag-1')
+                ->and($tag->name)->toBe('Meetings')
+                ->and($service->deleteFileTag('tag-1'))->toBeTrue();
+        });
+
+        it('renames a recording and assigns tags', function () {
+            Http::fake([
+                'api.plaud.ai/file/rec-1' => Http::response(['status' => 0, 'msg' => 'ok'], 200),
+            ]);
+
+            $service = new PlaudService(new PlaudClient('token'));
+
+            expect($service->renameRecording('rec-1', 'Standup')->status)->toBe(0)
+                ->and($service->setRecordingTags('rec-1', ['tag-1'])->status)->toBe(0);
+
+            Http::assertSent(function (Request $request) {
+                return $request->method() === 'PATCH'
+                    && str_ends_with($request->url(), '/file/rec-1')
+                    && (($request['filename'] ?? null) === 'Standup'
+                        || (($request['filetag_id_list'] ?? null) === ['tag-1']));
+            });
+        });
+
+        it('falls back to POST /file/list when file detail is missing', function () {
+            Http::fake([
+                'api.plaud.ai/file/detail/rec-fallback' => Http::response(['error' => 'nope'], 404),
+                'api.plaud.ai/file/list' => Http::response([
+                    'status' => 200,
+                    'msg' => 'success',
+                    'data_file_total' => 1,
+                    'data_file_list' => [
+                        ['id' => 'rec-fallback', 'filename' => 'From list'],
+                    ],
+                ], 200),
+            ]);
+
+            $service = new PlaudService(new PlaudClient('token'));
+            $file = $service->getRecording('rec-fallback');
+
+            expect($file->id)->toBe('rec-fallback')
+                ->and($file->filename)->toBe('From list');
         });
     });
 });

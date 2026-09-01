@@ -40,20 +40,29 @@ class DataFileList
         public array $transResult = [],
         public ?string $aiContent = null,
         public ?ExtraData $extraData = null,
+        public array $contentList = [],
+        public array $summaryList = [],
     ) {}
 
     public static function fromArray(array $data): self
     {
         $transResult = [];
-        if (isset($data['trans_result']) && is_array($data['trans_result'])) {
+        if (isset($data['trans_result']) && is_array($data['trans_result']) && array_is_list($data['trans_result'])) {
             foreach ($data['trans_result'] as $trans) {
-                $transResult[] = TransContent::fromArray($trans);
+                if (is_array($trans)) {
+                    $transResult[] = TransContent::fromArray($trans);
+                }
             }
         }
 
+        $aiContent = $data['ai_content'] ?? null;
+        if (is_array($aiContent)) {
+            $aiContent = json_encode($aiContent) ?: null;
+        }
+
         return new self(
-            id: $data['id'] ?? '',
-            filename: $data['filename'] ?? '',
+            id: $data['id'] ?? $data['file_id'] ?? '',
+            filename: $data['filename'] ?? $data['file_name'] ?? '',
             keywords: $data['keywords'] ?? [],
             filesize: $data['filesize'] ?? null,
             filetype: $data['filetype'] ?? null,
@@ -80,8 +89,10 @@ class DataFileList
             oriFullname: $data['ori_fullname'] ?? null,
             oriLocation: $data['ori_location'] ?? null,
             transResult: $transResult,
-            aiContent: $data['ai_content'] ?? null,
-            extraData: isset($data['extra_data']) ? ExtraData::fromArray($data['extra_data']) : null,
+            aiContent: is_string($aiContent) ? $aiContent : null,
+            extraData: isset($data['extra_data']) && is_array($data['extra_data']) ? ExtraData::fromArray($data['extra_data']) : null,
+            contentList: is_array($data['content_list'] ?? null) ? $data['content_list'] : [],
+            summaryList: is_array($data['summary_list'] ?? null) ? $data['summary_list'] : [],
         );
     }
 
@@ -118,6 +129,8 @@ class DataFileList
             'trans_result' => array_map(fn($trans) => $trans->toArray(), $this->transResult),
             'ai_content' => $this->aiContent,
             'extra_data' => $this->extraData?->toArray(),
+            'content_list' => $this->contentList,
+            'summary_list' => $this->summaryList,
         ];
     }
 }

@@ -18,11 +18,12 @@ class RequestExportFile
         public ?int $withSpeaker = null,
         public ?int $withTimestamp = null,
         public array $transContent = [],
+        public ?string $summaryId = null,
     ) {}
 
     public function toArray(): array
     {
-        return [
+        $payload = [
             'file_id' => $this->fileId,
             'prompt_type' => $this->promptType,
             'to_format' => $this->toFormat,
@@ -32,5 +33,11 @@ class RequestExportFile
             'with_timestamp' => $this->withTimestamp,
             'trans_content' => array_map(fn($content) => $content->toArray(), $this->transContent),
         ];
+
+        if ($this->summaryId !== null && $this->summaryId !== '') {
+            $payload['summary_id'] = $this->summaryId;
+        }
+
+        return $payload;
     }
 }
