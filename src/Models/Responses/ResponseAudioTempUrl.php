@@ -14,7 +14,7 @@ class ResponseAudioTempUrl
     {
         return new self(
             status: $data['status'] ?? 0,
-            tempUrl: $data['temp_url'] ?? '',
+            tempUrl: $data['temp_url'] ?? $data['url'] ?? $data['data']['temp_url'] ?? $data['data']['url'] ?? '',
             tempUrlOpus: $data['temp_url_opus'] ?? null,
         );
     }

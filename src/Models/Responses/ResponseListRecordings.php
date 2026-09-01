@@ -19,9 +19,17 @@ class ResponseListRecordings
     public static function fromArray(array $data): self
     {
         $dataFileList = [];
-        if (isset($data['data_file_list']) && is_array($data['data_file_list'])) {
-            foreach ($data['data_file_list'] as $file) {
-                $dataFileList[] = DataFileList::fromArray($file);
+        $list = $data['data_file_list'] ?? $data['payload'] ?? null;
+
+        if (! is_array($list) && isset($data['data']) && is_array($data['data']) && array_is_list($data['data'])) {
+            $list = $data['data'];
+        }
+
+        if (is_array($list)) {
+            foreach ($list as $file) {
+                if (is_array($file)) {
+                    $dataFileList[] = DataFileList::fromArray($file);
+                }
             }
         }
 

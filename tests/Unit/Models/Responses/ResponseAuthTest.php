@@ -71,6 +71,9 @@ describe('ResponseAuth', function () {
             'token_type' => 'Bearer',
             'login_count_per_hour' => 1,
             'login_total_per_hour' => 100,
+            'refresh_token' => '',
+            'token_id' => '',
+            'version_tag' => '',
         ]);
     });
 
@@ -82,11 +85,28 @@ describe('ResponseAuth', function () {
             'token_type' => 'Bearer',
             'login_count_per_hour' => 7,
             'login_total_per_hour' => 50,
+            'refresh_token' => '',
+            'token_id' => '',
+            'version_tag' => '',
         ];
 
         $response = ResponseAuth::fromArray($originalData);
         $resultArray = $response->toArray();
 
         expect($resultArray)->toBe($originalData);
+    });
+
+    it('reads nested access_token used by some login envelopes', function () {
+        $response = ResponseAuth::fromArray([
+            'status' => 0,
+            'msg' => 'ok',
+            'data' => [
+                'access_token' => 'nested-token',
+                'token_type' => 'Bearer',
+            ],
+        ]);
+
+        expect($response->accessToken)->toBe('nested-token')
+            ->and($response->tokenType)->toBe('Bearer');
     });
 });

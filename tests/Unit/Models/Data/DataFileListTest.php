@@ -177,4 +177,31 @@ describe('DataFileList', function () {
             ->and($array['trans_result'][0])->toBeArray()
             ->and($array['trans_result'][0]['content'])->toBe('Nested content');
     });
+
+    it('ignores trans_result objects that are not a list of segments', function () {
+        $file = DataFileList::fromArray([
+            'id' => 'obj-trans',
+            'filename' => 'Object trans',
+            'trans_result' => [
+                'full_text' => 'not segments',
+                'paragraphs' => [],
+            ],
+            'ai_content' => ['markdown' => '# Summary'],
+            'file_id' => 'should-not-win-over-id',
+        ]);
+
+        expect($file->id)->toBe('obj-trans')
+            ->and($file->transResult)->toBe([])
+            ->and($file->aiContent)->toBe('{"markdown":"# Summary"}');
+    });
+
+    it('maps file_id and file_name aliases used by /file/detail', function () {
+        $file = DataFileList::fromArray([
+            'file_id' => 'detail-1',
+            'file_name' => 'Detail Title',
+        ]);
+
+        expect($file->id)->toBe('detail-1')
+            ->and($file->filename)->toBe('Detail Title');
+    });
 });

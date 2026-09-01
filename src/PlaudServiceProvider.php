@@ -4,6 +4,7 @@ namespace Yannelli\LaravelPlaud;
 
 use Illuminate\Contracts\Support\DeferrableProvider;
 use Illuminate\Support\ServiceProvider;
+use Yannelli\LaravelPlaud\Support\Jwt;
 
 class PlaudServiceProvider extends ServiceProvider implements DeferrableProvider
 {
@@ -12,23 +13,37 @@ class PlaudServiceProvider extends ServiceProvider implements DeferrableProvider
      */
     public function register(): void
     {
-        // Merge package configuration
         $this->mergeConfigFrom(
             __DIR__.'/../config/plaud.php', 'plaud'
         );
 
-        // Register PlaudClient as a singleton
         $this->app->singleton(PlaudClient::class, function ($app) {
-            $accessToken = config('plaud.access_token');
-            return new PlaudClient($accessToken);
+            $client = new PlaudClient(
+                accessToken: config('plaud.access_token'),
+                baseUrl: config('plaud.base_url'),
+                userToken: config('plaud.user_token'),
+                refreshToken: config('plaud.refresh_token'),
+                deviceId: config('plaud.device_id'),
+            );
+
+            $workspaceId = config('plaud.workspace_id');
+            $userToken = $client->getUserToken() ?: $client->getAccessToken();
+
+            if (is_string($workspaceId) && $workspaceId !== '' && is_string($userToken) && $userToken !== '' && ! Jwt::isWorkspaceToken($userToken)) {
+                try {
+                    $client->mintWorkspaceToken($workspaceId);
+                } catch (\Throwable) {
+                    // Boot-time mint is best-effort; callers can invoke useWorkspace() later.
+                }
+            }
+
+            return $client;
         });
 
-        // Register PlaudService as a singleton
         $this->app->singleton(PlaudService::class, function ($app) {
             return new PlaudService($app->make(PlaudClient::class));
         });
 
-        // Register alias for the facade
         $this->app->alias(PlaudService::class, 'plaud');
     }
 
@@ -37,7 +52,6 @@ class PlaudServiceProvider extends ServiceProvider implements DeferrableProvider
      */
     public function boot(): void
     {
-        // Publish configuration file
         if ($this->app->runningInConsole()) {
             $this->publishes([
                 __DIR__.'/../config/plaud.php' => config_path('plaud.php'),
